@@ -1,5 +1,5 @@
-org 100h ; for dos... in linux nasm it and use dosbox to run it
-
+org 100h
+; 70 * 24 map
 maze db  "################################-END-#################################", 0x0D, 0x0A
      db  "#######             ##    #######   ###############          #########", 0x0D, 0x0A
      db  "#         #######   ##  ###                      ##########        ###", 0x0D, 0x0A
@@ -23,112 +23,142 @@ maze db  "################################-END-#################################
      db  "##   ##   ##   ##   ##   ##############   #######   ##   ##   ##  #  #", 0x0D, 0x0A
      db  "##   ##   ##   ##   ##   ##############             ##   ##   ##  #  #", 0x0D, 0x0A
      db  "##        ##        ##               ###########              ##     #", 0x0D, 0x0A
-     db  "################################START#################################", 0
+     db  "################################START#################################", 0x0D, 0x0A
+     db  "#                                                                    #", 0
 
-player_x db 9  ; starting row position (Y)
-player_y db 35 ; starting column position (X)
+player_x db 23  ; start position (row 24)
+player_y db 35  ; Column position (X)
 
 start:
-    mov ax, 0003h  ; set text mode
-    int 10h
+    mov ax, 0003h
+    int 10h     ; fixed space in interrupt call
 
 game_loop:
+    call clear_screen
     call draw_maze
     call draw_player
     call get_input
     jmp game_loop
 
+clear_screen:
+    mov ax, 0600h  ; AH=06 (scroll), AL=00 fulscreen
+    mov cx, 0000h  ; Upper left corner
+    mov dx, 184Fh  ; Lower right corner
+    mov bh, 07h    ; Normal attribute
+    int 10h        ; Fixed space
+    ret
+
 draw_maze:
     pusha
     mov si, maze
-    mov ah, 0x0E
-    xor bh, bh
+    mov ah, 0x0E   ; BIOS teletype output
+    xor bh, bh     ; Page 0
 .print_loop:
-    lodsb
-    cmp al, 0
+    lodsb          ; load next character
+    cmp al, 0      ; check for null terminator
     je .done
-    int 10h 
+    int 10h        ; fixed space
     jmp .print_loop
 .done:
     popa
     ret
 
 draw_player:
-    mov ah, 02h     ; cursor position set
-    mov bh, 00h
-    mov dh, [player_x]
-    mov dl, [player_y]
-    int 10h
-
-    mov ah, 0Eh
-    mov al, 'A'     ; print player character
-    int 10h
+    mov ah, 02h    ; set cursor position
+    mov bh, 00h    ; page 0
+    mov dh, [player_x] ; row (Y)
+    mov dl, [player_y] ; column (X)
+    int 10h        ; fixed space
+    
+    mov ah, 0Eh    ; teletype output
+    mov al, '@'    ; player character
+    int 10h        ; fixed space
     ret
 
 get_input:
     mov ah, 00h
-    int 16h
+    int 16h        ; get keyboard input
     
-    cmp ah, 48h     ; move up
-    je try_move_up
-    cmp ah, 50h     ; down move
-    je try_move_down
-    cmp ah, 4Bh     ; left move
-    je try_move_left
-    cmp ah, 4Dh     ; right move
-    je try_move_right
-    ret
-
-try_move_up:
-    dec byte [player_x]
-    call check_collision
-    jnc .valid
-    inc byte [player_x] ; revert if collision
-.valid:
-    ret
-
-try_move_down:
-    inc byte [player_x]
-    call check_collision
-    jnc .valid
-    dec byte [player_x] ; revert if collision
-.valid:
-    ret
-
-try_move_left:
-    dec byte [player_y]
-    call check_collision
-    jnc .valid
-    inc byte [player_y] ; revert if collision
-.valid:
-    ret
-
-try_move_right:
-    inc byte [player_y]
-    call check_collision
-    jnc .valid
-    dec byte [player_y] ; revert if collision
-.valid:
+    cmp ah, 48h    ; up
+    je move_up
+    cmp ah, 50h    ; down
+    je move_down
+    cmp ah, 4Bh    ; left
+    je move_left
+    cmp ah, 4Dh    ; right
+    je move_right
+    cmp ah, 'q'    ; escape key not wporking in dosbox idk why
+    je exit_program
     ret
 
 check_collision:
     pusha
+    ; boundary checks
+    cmp byte [player_x], 0
+    jb .collision
+    cmp byte [player_x], 22
+    ja .collision
+    cmp byte [player_y], 0
+    jb .collision
+    cmp byte [player_y], 69
+    ja .collision
 
-    ; Calculate maze offset
-    movzx ax, byte [player_x]
-    mov bx, 66   ; adjust for carriage return
-    mul bx
+    ;calculate maze offset
+    mov al, [player_x]
+    mov bl, 72      ; 70 chars + CRLF per line (CRLF takes 2)
+    mul bl          ; AX = X * 72
     add al, [player_y]
-    adc ah, 0
-    mov si, ax
+    adc ah, 0       ; handle carry
+    mov di, maze
+    add di, ax
 
-    cmp byte [maze + si], '#'  ; if wall, set carry flag
+    cmp byte [di], '#'
     je .collision
-    clc
     popa
+    clc             ; clear carry (no collision)
     ret
 
 .collision:
-    stc
     popa
+    stc             ; set carry (collision)
     ret
+
+move_up:
+    dec byte [player_x]
+    call check_collision
+    jc .undo
+    ret
+.undo:
+    inc byte [player_x]
+    ret
+
+move_down:
+    inc byte [player_x]
+    call check_collision
+    jc .undo
+    ret
+.undo:
+    dec byte [player_x]
+    ret
+
+move_left:
+    dec byte [player_y]
+    call check_collision
+    jc .undo
+    ret
+.undo:
+    inc byte [player_y]
+    ret
+
+move_right:
+    inc byte [player_y]
+    call check_collision
+    jc .undo
+    ret
+.undo:
+    dec byte [player_y]
+    ret
+
+exit_program:
+    mov ax, 4C00h   ; dos exit function
+    int 21h
