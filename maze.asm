@@ -24,11 +24,11 @@ maze db  "################################-END-#################################
      db  "##   ##   ##   ##   ##   ##############   #######   ##   ##   ##  #  #", 0x0D, 0x0A
      db  "##   ##   ##   ##   ##   ##############             ##   ##   ##  #  #", 0x0D, 0x0A
      db  "##        ##        ##               ###########              ##     #", 0x0D, 0x0A
-     db  "################################START#################################", 0 ;x0D, 0x0A
-     ;db  "#                                                                    #", 0
+     db  "################################START#################################", 0
 
 player_x db 24 ; start position (row)
 player_y db 35 ; column position (X)
+player_dir db 'A' ;defaut direction of plyer
 
 start:
     mov ax,0003h
@@ -65,16 +65,15 @@ draw_maze:
     ret
 
 draw_player:
-    mov ah, 02h ; set cursor position function
-    mov bh, 00h ; page number = 
-    mov dh, [player_x] ; row (Y)
-    mov dl, [player_y] ; column (X)
+    mov ah, 02h    ; Set cursor position
+    mov bh, 00h
+    mov dh, [player_x]
+    mov dl, [player_y]
+    int 10h
     
-    int 10h         ; set cursor position
-    
-    mov ah, 00Eh ; teletype output function
-    mov al,'A' ; player character to display
-    int 10h         ; print player character at cursor position
+    mov ah, 00Eh   ; Teletype output
+    mov al, [player_dir]  ; Use direction-based character
+    int 10h
     ret
 
 get_input:
@@ -145,43 +144,47 @@ ret
 .collision_detected:
     popa 
     stc                 ; set carry flag (collision detected)
-    ret 
+    ret
 
 move_up:
+    mov byte [player_dir], 'A'
     dec byte [player_x]
     call check_collision
     jc .undo_up  
-    ret 
+    ret
 
 .undo_up:
     inc byte [player_x]
-    ret 
+    ret
 
 move_down:
+    mov byte [player_dir], 'V'
     inc byte [player_x]
     call check_collision
     jc .undo_down  
-    ret 
+    ret
 
 .undo_down:
     dec byte [player_x]
-    ret 
+    ret
 
 move_left:
+    mov byte [player_dir], '<'
     dec byte [player_y]
     call check_collision
     jc .undo_left  
-    ret 
+    ret
 
 .undo_left:
     inc byte [player_y]
-    ret 
+    ret
 
 move_right:
+    mov byte [player_dir], '>'
     inc byte [player_y]
     call check_collision
     jc .undo_right  
-    ret 
+    ret
 
 .undo_right:
     dec byte [player_y]
