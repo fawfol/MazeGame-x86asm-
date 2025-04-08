@@ -90,7 +90,7 @@ cmp ah, 'K'     ; left arrow key (scan code)
 je move_left
 cmp ah, 'M'     ; right arrow key (scan code)
 je move_right
-cmp ah, 'q'     ; quit key ('q')
+cmp al, 'q'     ; quit key ('q')
 je exit_program  
 ret
 
