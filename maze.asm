@@ -53,7 +53,7 @@ draw_maze:
     pusha
     mov si, maze ; point to the maze data
     mov ah, 00Eh ; bios teletype output function 
-   
+    xor bh, bh   ; page number 0 
 .print_loop:
     lodsb          ; load next byte from maze into AL
     cmp al,00      ; check for null terminator
