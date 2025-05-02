@@ -28,7 +28,7 @@ maze db  "################################-END-#################################
 
 player_x db 24 ; start position (row)
 player_y db 35 ; column position (X)
-player_dir db 'A' ;defaut direction of plyer
+player_dir db 'A' ;defaut direction of player
 
 start:
     mov ax,0003h
@@ -53,7 +53,7 @@ draw_maze:
     pusha
     mov si, maze ; point to the maze data
     mov ah, 00Eh ; bios teletype output function 
-    xor bh, bh ; page number = 0
+   
 .print_loop:
     lodsb          ; load next byte from maze into AL
     cmp al,00      ; check for null terminator
