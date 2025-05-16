@@ -24,15 +24,36 @@ maze db  "################################-END-#################################
      db  "##   ##   ##   ##   ##   ##############   #######   ##   ##   ##  #  #", 0x0D, 0x0A
      db  "##   ##   ##   ##   ##   ##############             ##   ##   ##  #  #", 0x0D, 0x0A
      db  "##        ##        ##               ###########              ##     #", 0x0D, 0x0A
-     db  "################################START#################################", 0
+     db  "################################START#################################", 0 ;x0D, 0x0A
+     ;db  "#                                                                    #", 0
 
 player_x db 24 ; start position (row)
 player_y db 35 ; column position (X)
-player_dir db 'A' ;defaut direction of player
+player_dir db 'A' ;defaut direction of plyer
+menu_options db "1. Map 1    2. Quit", 0
 
 start:
     mov ax,0003h
     int 10h       ; set video mode
+
+menu:
+    call clear_screen
+    mov si, menu_options
+.print_loop: 
+    lodsb
+    cmp al, 0
+    je .wait_input
+    mov ah, 0x0e
+    int 10h
+    jmp .print_loop
+
+.wait_input:
+    call get_menu_opt
+    cmp al, '1'
+    je game_loop
+    cmp al, '2'
+    je exit_program
+    jmp .wait_input 
 
 game_loop:
     call clear_screen
@@ -53,7 +74,7 @@ draw_maze:
     pusha
     mov si, maze ; point to the maze data
     mov ah, 00Eh ; bios teletype output function 
-    xor bh, bh   ; page number 0 
+    xor bh, bh ; page number = 
 .print_loop:
     lodsb          ; load next byte from maze into AL
     cmp al,00      ; check for null terminator
@@ -76,6 +97,11 @@ draw_player:
     int 10h
     ret
 
+get_menu_opt:
+    mov ah, 00h
+    int 16h
+    ret
+
 get_input:
     mov ah, 00h ; keyboard input function
     int 16h         ; wait for key press
@@ -91,7 +117,7 @@ je move_left
 cmp ah, 'M'     ; right arrow key (scan code)
 je move_right
 cmp al, 'q'     ; quit key ('q')
-je exit_program  
+je enter_menu 
 ret
 
 check_collision:
@@ -189,6 +215,10 @@ move_right:
 .undo_right:
     dec byte [player_y]
     ret 
+
+enter_menu:
+    call clear_screen
+    jmp menu
 
 exit_program:
     mov ax, 4C00h       ; dos terminate program function
