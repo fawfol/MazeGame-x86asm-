@@ -218,6 +218,7 @@ move_right:
 
 enter_menu:
     call clear_screen
+    call reset_cursor
     jmp menu
 
 exit_program:
