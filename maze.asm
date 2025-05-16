@@ -31,13 +31,14 @@ player_x db 24 ; start position (row)
 player_y db 35 ; column position (X)
 player_dir db 'A' ;defaut direction of plyer
 menu_options db "1. Map 1    2. Quit", 0
+win_msg db "You win! Now get the hell outta here.", 0x0D, 0x0A
+        db "Any key to menu" , 0
 
 start:
     mov ax,0003h
     int 10h       ; set video mode
 
 menu:
-    call clear_screen
     mov si, menu_options
 .print_loop: 
     lodsb
@@ -48,12 +49,28 @@ menu:
     jmp .print_loop
 
 .wait_input:
-    call get_menu_opt
+    call get_menu_opt  
     cmp al, '1'
     je game_loop
     cmp al, '2'
     je exit_program
     jmp .wait_input 
+
+win:
+    mov si, win_msg
+.print_loop:
+    lodsb
+    cmp al, 0
+    je .wait_any_key
+    mov ah, 0x0e
+    int 10h
+    jmp .print_loop
+
+.wait_any_key:
+    mov ah, 00h
+    int 16h
+    call empty_screen
+    jmp menu    ; 41
 
 game_loop:
     call clear_screen
@@ -117,7 +134,8 @@ je move_left
 cmp ah, 'M'     ; right arrow key (scan code)
 je move_right
 cmp al, 'q'     ; quit key ('q')
-je enter_menu 
+call empty_screen  
+je menu  
 ret
 
 check_collision:
@@ -149,23 +167,22 @@ je .collision_detected
 
 ; Check for win conditions ('-', 'E', 'N', 'D')
 cmp byte [di], '-'
-je .win_condition 
+call empty_screen
+je win
 cmp byte [di], 'E'
-je .win_condition 
+call empty_screen
+je win 
 cmp byte [di], 'N'
-je .win_condition 
+call empty_screen
+je win
 cmp byte [di], 'D'
-je .win_condition 
+call empty_screen
+je win
 
 popa 
 clc                 ; clear carry flag (no collision)
 ret 
 
-.win_condition:
-    call clear_screen
-    call reset_cursor
-    call display_message 
-    jmp exit_program      ; Exit after winning.
 
 .collision_detected:
     popa 
@@ -216,10 +233,11 @@ move_right:
     dec byte [player_y]
     ret 
 
-enter_menu:
-    call clear_screen
+empty_screen:
     call reset_cursor
-    jmp menu
+    call clear_screen
+    call reset_display
+    ret
 
 exit_program:
     mov ax, 4C00h       ; dos terminate program function
@@ -233,7 +251,14 @@ reset_cursor:
     int 10h
     ret
 
+reset_display:
+    mov ax, 0003h  ;  text mode
+    int 10h
+    call clear_screen   ;65
+    ret
+
 display_message:
+    call reset_display
     mov ah, 0x0E
     mov si, win_msg
 .print_message:
@@ -244,5 +269,3 @@ display_message:
     jmp .print_message
 .done:
     ret
-
-win_msg db "You win! Now get the hell outta here.", 0
